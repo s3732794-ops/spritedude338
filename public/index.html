@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Sprite Tower Defense: Online PvP</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0; padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #0b0c10;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #app-container {
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      height: 100vh;
+      max-height: 720px;
+      background: #1f2833;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 35px rgba(0,0,0,0.9);
+      overflow: hidden;
+      border: 1px solid #45a29e;
+    }
+    .top-bar {
+      z-index: 200;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0b0c10;
+      padding: 10px 16px;
+      border-bottom: 2px solid #45a29e;
+      font-size: 1rem;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .coins-display {
+      color: #f7d51d;
+      text-shadow: 0 0 8px rgba(247, 213, 29, 0.4);
+    }
+    .screens-wrapper {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .screen {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      background: #1f2833;
+      z-index: 10;
+      padding: 14px;
+      overflow-y: auto;
+    }
+    .screen.hidden { display: none !important; }
+
+    #menu-screen {
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      background: radial-gradient(circle at center, #1f2833 0%, #0b0c10 100%);
+      z-index: 50;
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: #66fcf1;
+      text-shadow: 0 0 15px rgba(102, 252, 241, 0.5);
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    .sub-title {
+      color: #c5c6c7;
+      font-weight: bold;
+      font-size: 0.95rem;
+      margin-bottom: 5px;
+    }
+    .campaign-badge {
+      background: #45a29e;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border: 1px solid #66fcf1;
+    }
+    .btn {
+      padding: 12px 28px;
+      font-size: 1.05rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 100;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #66fcf1; color: #0b0c10; }
+    .btn-secondary { background: #45a29e; color: #fff; }
+    .btn-gold { background: #f7d51d; color: #000; }
+
+    .section-screen { background: #0b0c10; gap: 12px; z-index: 60; }
+    .section-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #1f2833;
+      position: sticky;
+      top: 0;
+      background: #0b0c10;
+      z-index: 70;
+    }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+      gap: 10px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .card-item {
+      background: #1f2833;
+      border: 2px solid #45a29e;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      position: relative;
+    }
+    .card-item.in-deck { border-color: #66fcf1; background: #143238; }
+    .card-item .cost-badge {
+      position: absolute; top: -6px; left: -6px;
+      background: #e91e63; color: #fff;
+      font-weight: bold; border-radius: 50%;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; border: 1px solid #fff;
+    }
+    .card-item .lvl-badge {
+      position: absolute; top: -6px; right: -6px;
+      background: #66fcf1; color: #000;
+      font-weight: bold; border-radius: 50%;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; border: 1px solid #000;
+    }
+    .card-item .pic-img { width: 50px; height: 50px; object-fit: contain; margin: 4px 0; }
+    .card-item .name { font-size: 0.75rem; font-weight: bold; text-align: center; line-height: 1.1; color: #fff; }
+    .card-item .rarity { font-size: 0.65rem; color: #aaa; text-transform: uppercase; }
+    .card-item .upgrade-btn {
+      margin-top: 4px;
+      padding: 4px 8px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      background: #f7d51d;
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      z-index: 5;
+    }
+    .card-item .upgrade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #game-screen { padding: 0; background: #000; justify-content: space-between; overflow: hidden; z-index: 60; }
+    #canvas-container { flex: 1; position: relative; width: 100%; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    #ui-panel {
+      height: 110px;
+      background: #0b0c10;
+      border-top: 2px solid #45a29e;
+      display: flex;
+      flex-direction: column;
+      padding: 6px 10px;
+      gap: 6px;
+      z-index: 70;
+    }
+    .energy-bar-container {
+      width: 100%; height: 16px;
+      background: #1f2833;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid #45a29e;
+    }
+    .energy-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #45a29e, #66fcf1);
+      width: 50%;
+      transition: width 0.05s linear;
+    }
+    .energy-text {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: bold; text-shadow: 0 0 4px #000; color: #fff;
+    }
+
+    .cards-deck-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 6px;
+    }
+    .next-card-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-size: 0.65rem;
+      color: #c5c6c7;
+    }
+    .hand-cards { display: flex; gap: 8px; justify-content: center; align-items: center; }
+    
+    .game-card {
+      width: 65px; height: 82px;
+      background: #1f2833;
+      border: 2px solid #45a29e;
+      border-radius: 6px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: space-between;
+      padding: 4px; cursor: pointer;
+      position: relative; flex-shrink: 0;
+    }
+    .game-card.active { border-color: #66fcf1; transform: translateY(-4px); box-shadow: 0 0 10px #66fcf1; }
+    .game-card.disabled { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
+    .game-card .cost {
+      position: absolute; top: -4px; left: -4px;
+      background: #e91e63; color: #fff;
+      font-weight: bold; border-radius: 50%;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; border: 1px solid #fff;
+    }
+    .game-card .lvl {
+      position: absolute; top: -4px; right: -4px;
+      background: #66fcf1; color: #000;
+      font-weight: bold; border-radius: 50%;
+      width: 18px; height: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; border: 1px solid #000;
+    }
+    .game-card .pic-img { width: 38px; height: 38px; object-fit: contain; margin-top: 4px; }
+    .game-card .name { font-size: 0.5rem; text-align: center; line-height: 0.85; font-weight: bold; color: #fff; }
+
+    .modal {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85); z-index: 10000; display: flex;
+      flex-direction: column; align-items: center; justify-content: center; gap: 15px;
+      padding: 20px; text-align: center;
+    }
+    .modal.hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div id="app-container">
+  
+  <div class="top-bar">
+    <span style="color: #66fcf1;">🏰 SPRITE DEFENSE (PvP)</span>
+    <span class="coins-display">💰 <span id="coins-count">50000</span> Монет</span>
+    <span style="color: #c5c6c7;" id="status-top">Статус: <span style="color:#66fcf1;" id="connection-status">В меню</span></span>
+  </div>
+
+  <div class="screens-wrapper">
+
+    <!-- MENU SCREEN -->
+    <div id="menu-screen" class="screen">
+      <h1>SPRITE TOWER DEFENSE</h1>
+      <div class="sub-title">ОНЛАЙН СЕТЕВАЯ АРЕНА</div>
+      <div class="campaign-badge" id="matchmaking-status">Нажмите кнопку для поиска игрока</div>
+
+      <button class="btn btn-primary" id="find-match-btn" onclick="findOnlineMatch()">🔍 НАЙТИ ПРОТИВНИКА</button>
+      <button class="btn btn-gold" onclick="openDeckBuilder()">🃏 СОБРАТЬ И УЛУЧШИТЬ КОЛОДУ (<span id="menu-deck-count">8</span>/8)</button>
+    </div>
+
+    <!-- DECK BUILDER & UPGRADE SCREEN -->
+    <div id="deck-screen" class="screen hidden section-screen">
+      <div class="section-top-bar">
+        <h2>Сборка и прокачка карт (<span id="builder-deck-count">8</span>/8)</h2>
+        <button class="btn btn-secondary" style="padding: 8px 20px; font-size: 0.95rem; cursor: pointer; z-index: 100;" onclick="showMenu()">ГОТОВО</button>
+      </div>
+      <div style="font-size: 0.75rem; color: #aaa;">Выберите 8 карт для колоды. Каждый уровень даёт +8% HP и урона (макс. 17 lvl)!</div>
+      <div class="cards-grid" id="deck-cards-grid"></div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="screen hidden">
+      <div id="canvas-container"><canvas id="gameCanvas"></canvas></div>
+      <div id="ui-panel">
+        <div class="energy-bar-container">
+          <div class="energy-bar-fill" id="energy-fill"></div>
+          <div class="energy-text" id="energy-text">Энергия: 5.0 / 10</div>
+        </div>
+        <div class="cards-deck-container">
+          <div class="next-card-box">
+            <span>След:</span>
+            <div class="game-card disabled" id="next-card" style="width: 45px; height: 60px;">
+              <img id="next-card-img" class="pic-img" style="width: 32px; height: 32px;" src="">
+            </div>
+          </div>
+          <div class="hand-cards" id="hand-cards"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- END MODAL -->
+  <div id="end-modal" class="modal hidden">
+    <h1 id="end-title" style="font-size: 2.2rem;">ПОБЕДА! 🎉</h1>
+    <div id="end-reward-box" style="font-size: 1.1rem; color: #f7d51d;">+5000 Монет получено!</div>
+    <button class="btn btn-primary" onclick="showMenu()">В МЕНЮ</button>
+  </div>
+
+</div>
+
+<!-- Подключение socket.io скрипта без сбоя страницы при офлайне -->
+<script src="/socket.io/socket.io.js" onerror="console.log('Офлайн режим: сокеты недоступны без сервера')"></script>
+
+<script>
+// Безопасное подключение сокетов
+let socket = null;
+if (typeof io !== 'undefined') {
+  try {
+    socket = io();
+  } catch(e) {
+    console.log("Socket.io не подключен");
+  }
+}
+
+let playerCoins = 50000;
+const MAX_LEVEL = 17;
+const cardLevels = {};
+
+const BASE_UPGRADE_COSTS = {
+  'Common': 4,
+  'Rare': 40,
+  'Epic': 400,
+  'Legendary': 4000
+};
+
+const ALL_CARDS_POOL = [
+  { 
+    id: 1, name: "Normal Dude", picture: "pictures/personcard.png", rarity: "Common", cost: 2, 
+    hp: 1500, dmg: 150, hitSpd: 1.0, firstHit: 0.0, spd: 1.8, range: 1.2, target: "Ground",
+    spriteSrc: "sprites/person.png", origW: 262, origH: 698, desc: "Обычный боец ближнего боя." 
+  },
+  { 
+    id: 2, name: "Boxing Dude", picture: "pictures/boxingdudecard.png", rarity: "Rare", cost: 5, 
+    hp: 4500, dmg: 450, hitSpd: 0.5, firstHit: 0.0, spd: 1.8, range: 1.2, target: "Ground",
+    spriteSrc: "sprites/boxingdude.png", attackSpriteSrc: "sprites/boxingattack.png", origW: 468, origH: 534, attackDuration: 0.35, desc: "Боксер с быстрыми ударами." 
+  },
+  { 
+    id: 3, name: "Trainer Dude", picture: "pictures/trainercard.png", rarity: "Epic", cost: 5, 
+    hp: 2500, dmg: 150, hitSpd: 1.2, firstHit: 0.5, spd: 1.7, range: 1.2, target: "Ground",
+    spriteSrc: "sprites/trainer.png", origW: 222, origH: 699, isTrainer: true, buffVal: 0.5, desc: "Бафает скорость союзников на линии." 
+  },
+  { 
+    id: 4, name: "Traffic Dude", picture: "pictures/trafficdudecard.png", rarity: "Epic", cost: 5, 
+    hp: 2500, dmg: 500, hitSpd: 1.5, firstHit: 0.5, spd: 1.7, range: 7.5, target: "Ground & Air",
+    spriteSrc: "sprites/trafficdude.png", origW: 454, origH: 549, 
+    projSpriteSrc: "sprites/car.png", projOrigW: 807, projOrigH: 309, projSpd: 7.0, projScale: 0.5, desc: "Стреляет машинками." 
+  },
+  { 
+    id: 5, name: "Blue Car Dude", picture: "pictures/bluecard.png", rarity: "Rare", cost: 6, 
+    hp: 2200, dmg: 750, chargeDmg: 1500, hitSpd: 2.5, firstHit: 0.5, spd: 0.5, chargedSpd: 4.5, chargeDelay: 2.0, range: 0.3, target: "Buildings", targetBuildingsOnly: true,
+    spriteSrc: "sprites/bluecar.png", origW: 865, origH: 288, desc: "Машина, разгоняется через 2с." 
+  },
+  { 
+    id: 6, name: "Abrams Tank", picture: "pictures/tankcard.png", rarity: "Legendary", cost: 8, 
+    hp: 6800, dmg: 1500, hitSpd: 3.0, firstHit: 0.5, spd: 0.7, range: 5.5, target: "Ground",
+    spriteSrc: "sprites/tank.png", origW: 873, origH: 286, desc: "Тяжелый танк." 
+  },
+  { 
+    id: 7, name: "Person Trio", picture: "pictures/threeperson.png", rarity: "Common", cost: 5,
+    isSpawnPack: true, spawnCardId: 1, count: 3, desc: "Призывает троих Normal Dude по линиям." 
+  },
+  { 
+    id: 8, name: "Trainer Duo", picture: "pictures/trainerduo.png", rarity: "Epic", cost: 7,
+    isSpawnPack: true, spawnCardId: 3, count: 2, isDuoLanes: true, desc: "Призывает 2 Trainer Dude (верх и низ)." 
+  },
+  { 
+    id: 9, name: "Blue Cars", picture: "pictures/blue.png", rarity: "Epic", cost: 9,
+    isSpawnPack: true, spawnCardId: 5, count: 3, desc: "Призывает три Blue Car Dude по линиям." 
+  }
+];
+
+const loadedImages = {};
+ALL_CARDS_POOL.forEach(card => {
+  if (card.picture) { let img = new Image(); img.src = card.picture; loadedImages[card.picture] = img; }
+  if (card.spriteSrc) { let img = new Image(); img.src = card.spriteSrc; loadedImages[card.spriteSrc] = img; }
+  if (card.attackSpriteSrc) { let img = new Image(); img.src = card.attackSpriteSrc; loadedImages[card.attackSpriteSrc] = img; }
+  if (card.projSpriteSrc) { let img = new Image(); img.src = card.projSpriteSrc; loadedImages[card.projSpriteSrc] = img; }
+});
+
+ALL_CARDS_POOL.forEach(c => cardLevels[c.id] = 1);
+
+let playerActiveDeckIDs = [1, 2, 3, 4, 5, 6, 7, 8];
+
+let canvas, ctx, lastTime = 0, gameState = "MENU";
+let playerEnergy = 5.0;
+let playerBase = [], aiBase = [];
+let units = [], projectiles = [];
+let playerDeckQueue = [], playerHand = [], playerNextCard = null;
+let selectedCardIndex = null;
+let currentRoomId = null;
+let myRole = null;
+
+const MAP_TILES = 18;
+const LANES_COUNT = 3;
+
+function getCardLevel(cardId) { return cardLevels[cardId] || 1; }
+
+function getUpgradeCost(card) {
+  let curLvl = getCardLevel(card.id);
+  if (curLvl >= MAX_LEVEL) return Infinity;
+  let baseCost = BASE_UPGRADE_COSTS[card.rarity || 'Common'] || 4;
+  return baseCost * Math.pow(2, curLvl - 1);
+}
+
+function upgradeCard(cardId) {
+  let card = ALL_CARDS_POOL.find(c => c.id === cardId);
+  let curLvl = getCardLevel(cardId);
+  if (curLvl >= MAX_LEVEL) return;
+  let cost = getUpgradeCost(card);
+  if (playerCoins >= cost) {
+    playerCoins -= cost;
+    cardLevels[cardId] = curLvl + 1;
+    updateCoinsDisplay();
+    openDeckBuilder();
+  }
+}
+
+function updateCoinsDisplay() {
+  document.getElementById("coins-count").innerText = playerCoins;
+}
+
+function shuffle(array) { return [...array].sort(() => Math.random() - 0.5); }
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+  let target = document.getElementById(id);
+  if (target) target.classList.remove("hidden");
+}
+
+function showMenu() {
+  gameState = "MENU";
+  document.getElementById("end-modal").classList.add("hidden");
+  document.getElementById("menu-deck-count").innerText = playerActiveDeckIDs.length;
+  document.getElementById("connection-status").innerText = socket ? "Подключен" : "Офлайн";
+  document.getElementById("matchmaking-status").innerText = "Нажмите кнопку для поиска игрока";
+  document.getElementById("find-match-btn").disabled = false;
+  updateCoinsDisplay();
+  showScreen("menu-screen");
+}
+
+function openDeckBuilder() {
+  const grid = document.getElementById("deck-cards-grid");
+  grid.innerHTML = "";
+  document.getElementById("builder-deck-count").innerText = playerActiveDeckIDs.length;
+  updateCoinsDisplay();
+
+  ALL_CARDS_POOL.forEach(card => {
+    let inDeck = playerActiveDeckIDs.includes(card.id);
+    let lvl = getCardLevel(card.id);
+    let upCost = getUpgradeCost(card);
+    let isMax = lvl >= MAX_LEVEL;
+
+    let div = document.createElement("div");
+    div.className = `card-item ${inDeck ? 'in-deck' : ''}`;
+    div.innerHTML = `
+      <div class="cost-badge">${card.cost}</div>
+      <div class="lvl-badge">${lvl}</div>
+      <img class="pic-img" src="${card.picture}">
+      <div class="name">${card.name}</div>
+      <div class="rarity">${card.rarity || 'Common'}</div>
+      <button class="upgrade-btn" onclick="event.stopPropagation(); upgradeCard(${card.id})" ${isMax || playerCoins < upCost ? 'disabled' : ''}>
+        ${isMax ? 'МАКС' : `Улучшить 💰${upCost}`}
+      </button>
+    `;
+    div.onclick = () => toggleCardInDeck(card.id);
+    grid.appendChild(div);
+  });
+  showScreen("deck-screen");
+}
+
+function toggleCardInDeck(id) {
+  let index = playerActiveDeckIDs.indexOf(id);
+  if (index > -1) {
+    if (playerActiveDeckIDs.length <= 1) { alert("В колоде должна остаться хотя бы 1 карта!"); return; }
+    playerActiveDeckIDs.splice(index, 1);
+  } else {
+    if (playerActiveDeckIDs.length >= 8) { alert("В колоде может быть максимум 8 карт!"); return; }
+    playerActiveDeckIDs.push(id);
+  }
+  document.getElementById("builder-deck-count").innerText = playerActiveDeckIDs.length;
+  openDeckBuilder();
+}
+
+function findOnlineMatch() {
+  if (playerActiveDeckIDs.length !== 8) {
+    alert("В колоде должно быть ровно 8 карт!");
+    openDeckBuilder();
+    return;
+  }
+
+  if (!socket) {
+    alert("Для онлайн боя запустите сервер node server.js!");
+    return;
+  }
+
+  document.getElementById("find-match-btn").disabled = true;
+  document.getElementById("matchmaking-status").innerText = "Поиск реального игрока в сети...";
+  document.getElementById("connection-status").innerText = "Поиск матча...";
+  
+  socket.emit('find_match');
+}
+
+if (socket) {
+  socket.on('match_found', (data) => {
+    currentRoomId = data.roomId;
+    myRole = data.role;
+    startOnlineGame();
+  });
+
+  socket.on('waiting', (msg) => {
+    document.getElementById("matchmaking-status").innerText = msg;
+  });
+
+  socket.on('opponent_action', (data) => {
+    if (data.action === 'spawn') {
+      let mirroredX = MAP_TILES - data.unit.x;
+      let mirroredLane = 2 - data.unit.lane;
+      spawnUnitByNetwork(data.unit.cardId, data.unit.team === 'player' ? 'ai' : 'player', mirroredLane, mirroredX, data.unit.level);
+    }
+  });
+}
+
+function startOnlineGame() {
+  gameState = "GAME";
+  document.getElementById("end-modal").classList.add("hidden");
+  showScreen("game-screen");
+
+  const container = document.getElementById("canvas-container");
+  canvas = document.getElementById("gameCanvas");
+  ctx = canvas.getContext("2d");
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+
+  playerEnergy = 5.0;
+
+  let playerObjectsDeck = playerActiveDeckIDs.map(id => ALL_CARDS_POOL.find(c => c.id === id));
+  playerDeckQueue = shuffle([...playerObjectsDeck]);
+  playerHand = [playerDeckQueue.shift(), playerDeckQueue.shift(), playerDeckQueue.shift(), playerDeckQueue.shift()];
+  playerNextCard = playerDeckQueue.shift();
+
+  selectedCardIndex = null;
+
+  let castleHp = 20000;
+  playerBase = [{ type: 'castle', emoji: '🏰', lane: 1, x: 0.8, hp: castleHp, maxHp: castleHp, team: 'player', level: 1, dmg: 250, hitSpd: 1.0, range: 8.5, attackTimer: 0 }];
+  aiBase = [{ type: 'castle', emoji: '🏰', lane: 1, x: MAP_TILES - 0.8, hp: castleHp, maxHp: castleHp, team: 'ai', level: 1, dmg: 250, hitSpd: 1.0, range: 8.5, attackTimer: 0 }];
+
+  units = []; projectiles = [];
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
+  updateUI();
+  document.getElementById("connection-status").innerText = `Битва (${myRole || 'Тренировка'})`;
+}
+
+function gameLoop(now) {
+  if (gameState !== "GAME") return;
+  let dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+  update(dt);
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+function update(dt) {
+  if (playerEnergy < 10) playerEnergy = Math.min(10, playerEnergy + dt / 2.8);
+  updateUI();
+
+  units.forEach(u => u.hasTrainerBuff = false);
+
+  units.forEach(u => {
+    if (u.isTrainer && u.hp > 0) {
+      units.forEach(ally => {
+        if (ally !== u && ally.team === u.team && ally.lane === u.lane && Math.abs(ally.x - u.x) <= 2.5) {
+          ally.hasTrainerBuff = true;
+        }
+      });
+    }
+  });
+
+  [playerBase, aiBase].forEach(base => {
+    base.forEach(b => {
+      if (b.hp <= 0) return;
+      b.attackTimer += dt;
+      if (b.attackTimer >= b.hitSpd) {
+        let enemyUnits = (b.team === 'player' ? units.filter(u => u.team === 'ai') : units.filter(u => u.team === 'player'));
+        let targets = enemyUnits.filter(u => Math.abs(u.x - b.x) <= b.range);
+        if (targets.length > 0) {
+          b.attackTimer = 0;
+          let target = targets[0];
+          target.hp -= b.dmg;
+          projectiles.push({ x: b.x, yLane: target.lane, targetX: target.x, targetObj: target, emoji: '🏹', speed: 10.1, dmg: b.dmg, team: b.team });
+        }
+      }
+    });
+  });
+
+  units.forEach(u => {
+    if (u.hp <= 0) return;
+    if (u.attackAnimTimer > 0) u.attackAnimTimer -= dt;
+
+    let speedMult = u.hasTrainerBuff ? 1.5 : 1.0;
+    let hitSpdMult = u.hasTrainerBuff ? 1.5 : 1.0;
+
+    if (u.isBlueCar) {
+      u.deployTimer = (u.deployTimer || 0) + dt;
+      if (u.deployTimer >= (u.chargeDelay || 2.0)) u.isCharged = true;
+    }
+
+    let currentSpeed = u.isCharged ? (u.chargedSpd || 4.5) : u.spd;
+    let currentDmg = u.isCharged ? (u.chargeDmg || u.dmg) : u.dmg;
+
+    let enemyUnits = units.filter(e => e.team !== u.team && e.lane === u.lane);
+    let enemyBase = u.team === 'player' ? aiBase : playerBase;
+    let targets = [];
+
+    if (u.targetBuildingsOnly) {
+      enemyBase.filter(b => b.hp > 0 && Math.abs(b.x - u.x) <= u.range).forEach(b => targets.push(b));
+    } else {
+      enemyUnits.forEach(e => { if (Math.abs(e.x - u.x) <= u.range) targets.push(e); });
+      enemyBase.filter(b => b.hp > 0 && Math.abs(b.x - u.x) <= u.range).forEach(b => targets.push(b));
+    }
+
+    if (targets.length > 0) {
+      if (currentDmg > 0) {
+        u.attackTimer += dt * hitSpdMult;
+        let curHitSpd = u.isFirstHit ? u.firstHit : u.hitSpd;
+        if (u.attackTimer >= curHitSpd) {
+          u.attackTimer = 0; u.isFirstHit = false;
+          let closest = targets[0];
+          if (u.attackSpriteSrc) u.attackAnimTimer = u.attackDuration || 0.35;
+
+          if (u.projSpriteSrc) {
+            projectiles.push({ x: u.x, yLane: u.lane, targetX: closest.x, targetObj: closest, spriteSrc: u.projSpriteSrc, origW: u.projOrigW, origH: u.projOrigH, speed: u.projSpd, scale: u.projScale || 1.0, dmg: currentDmg, team: u.team });
+          } else {
+            closest.hp -= currentDmg;
+          }
+        }
+      }
+    } else {
+      let dir = u.team === 'player' ? 1 : -1;
+      u.x += dir * currentSpeed * speedMult * dt;
+    }
+  });
+
+  units = units.filter(u => u.hp > 0);
+
+  projectiles.forEach(p => {
+    let dir = p.targetX > p.x ? 1 : -1;
+    p.x += dir * p.speed * dt;
+    if (Math.abs(p.x - p.targetX) < 0.3) {
+      p.hit = true;
+      if (p.targetObj && p.targetObj.hp > 0) p.targetObj.hp -= p.dmg;
+    }
+  });
+  projectiles = projectiles.filter(p => !p.hit);
+
+  if (playerBase[0].hp <= 0) endGame(false);
+  if (aiBase[0].hp <= 0) endGame(true);
+}
+
+function playCardLocally(card, lane, targetX) {
+  let cardLvl = getCardLevel(card.id);
+
+  if (card.isSpawnPack) {
+    if (card.id === 7) {
+      for (let l = 0; l < 3; l++) {
+        let baseCard = ALL_CARDS_POOL.find(c => c.id === card.spawnCardId);
+        spawnUnit(baseCard, 'player', l, targetX, cardLvl);
+      }
+    } else if (card.id === 8) {
+      spawnUnit(ALL_CARDS_POOL.find(c => c.id === card.spawnCardId), 'player', 0, targetX, cardLvl);
+      spawnUnit(ALL_CARDS_POOL.find(c => c.id === card.spawnCardId), 'player', 2, targetX, cardLvl);
+    } else if (card.id === 9) {
+      for (let l = 0; l < 3; l++) {
+        let baseCard = ALL_CARDS_POOL.find(c => c.id === card.spawnCardId);
+        spawnUnit(baseCard, 'player', l, targetX, cardLvl);
+      }
+    }
+  } else {
+    spawnUnit(card, 'player', lane, targetX, cardLvl);
+  }
+
+  if (socket) {
+    socket.emit('player_action', {
+      roomId: currentRoomId,
+      action: 'spawn',
+      unit: { cardId: card.id, team: 'player', lane: lane, x: targetX, level: cardLvl }
+    });
+  }
+}
+
+function spawnUnit(card, team, lane, x, level) {
+  let scaledHp = card.hp * Math.pow(1.08, level - 1);
+  let scaledDmg = card.dmg * Math.pow(1.08, level - 1);
+  let scaledChargeDmg = card.chargeDmg ? card.chargeDmg * Math.pow(1.08, level - 1) : 0;
+
+  units.push({
+    id: card.id, name: card.name, team: team, lane: lane, x: x, level: level,
+    hp: scaledHp, maxHp: scaledHp, dmg: scaledDmg, chargeDmg: scaledChargeDmg,
+    hitSpd: card.hitSpd || 1.0, firstHit: card.firstHit || 0.0, isFirstHit: true, attackTimer: 0,
+    spd: card.spd || 1.8, chargedSpd: card.chargedSpd, chargeDelay: card.chargeDelay, range: card.range || 1.2,
+    targetBuildingsOnly: card.targetBuildingsOnly || false, isTrainer: card.isTrainer || false,
+    isBlueCar: card.id === 5, spriteSrc: card.spriteSrc, attackSpriteSrc: card.attackSpriteSrc,
+    origW: card.origW, origH: card.origH, attackDuration: card.attackDuration || 0.35, attackAnimTimer: 0,
+    projSpriteSrc: card.projSpriteSrc, projOrigW: card.projOrigW, projOrigH: card.projOrigH,
+    projSpd: card.projSpd, projScale: card.projScale || 1.0
+  });
+}
+
+function spawnUnitByNetwork(cardId, team, lane, x, level) {
+  let card = ALL_CARDS_POOL.find(c => c.id === cardId);
+  if (card) spawnUnit(card, team, lane, x, level);
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const w = canvas.width, h = canvas.height;
+  const tileW = w / MAP_TILES, laneH = h / LANES_COUNT;
+
+  for (let i = 0; i < LANES_COUNT; i++) {
+    ctx.fillStyle = i % 2 === 0 ? "#1f2833" : "#141c24";
+    ctx.fillRect(0, i * laneH, w, laneH);
+    ctx.strokeStyle = "#45a29e";
+    ctx.strokeRect(0, i * laneH, w, laneH);
+  }
+
+  playerBase.forEach(b => drawCastle(b, tileW, laneH, h));
+  aiBase.forEach(b => drawCastle(b, tileW, laneH, h));
+
+  units.forEach(u => {
+    let cx = u.x * tileW, cy = (u.lane + 0.5) * laneH;
+    let baseSize = laneH * 0.75;
+    let ratio = u.origW / u.origH;
+    let drawH = baseSize;
+    let drawW = baseSize * ratio;
+
+    let activeSrc = (u.attackAnimTimer > 0 && u.attackSpriteSrc) ? u.attackSpriteSrc : u.spriteSrc;
+    let img = loadedImages[activeSrc];
+
+    ctx.save();
+    if (u.team === 'ai') {
+      ctx.scale(-1, 1);
+      cx = -cx;
+    }
+
+    if (img && img.complete) {
+      ctx.drawImage(img, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+    } else {
+      ctx.font = `${drawH}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("📦", cx, cy);
+    }
+    ctx.restore();
+
+    if (u.hasTrainerBuff) {
+      ctx.fillStyle = "#66fcf1";
+      ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("⚡", u.x * tileW, cy - drawH / 2 - 12);
+    }
+
+    drawHPBar(u.x * tileW, cy - drawH / 2 - 4, u.hp, u.maxHp, drawW, u.team, u.level);
+  });
+
+  projectiles.forEach(p => {
+    let cx = p.x * tileW, cy = (p.yLane + 0.5) * laneH;
+    if (p.spriteSrc) {
+      let img = loadedImages[p.spriteSrc];
+      let pSize = laneH * 0.35 * (p.scale || 1.0);
+      let pRatio = p.origW / p.origH;
+      let pW = pSize * pRatio, pH = pSize;
+      if (img && img.complete) {
+        ctx.drawImage(img, cx - pW / 2, cy - pH / 2, pW, pH);
+      }
+    } else {
+      ctx.font = `${laneH * 0.35}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(p.emoji || '🏹', cx, cy);
+    }
+  });
+}
+
+function drawCastle(b, tileW, laneH, canvasH) {
+  if (b.hp <= 0) return;
+  let cx = b.x * tileW;
+  let cy = canvasH / 2;
+
+  ctx.font = `${laneH * 0.75}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(b.emoji, cx, cy);
+
+  let barWidth = tileW * 3.2;
+  let barHeight = 12;
+  let barY = cy - laneH * 0.55;
+  let pct = Math.max(0, b.hp / b.maxHp);
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+  ctx.fillRect(cx - barWidth/2 - 2, barY - 14, barWidth + 4, barHeight + 16);
+
+  ctx.strokeStyle = b.team === 'player' ? "#66fcf1" : "#ff3d00";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx - barWidth/2, barY, barWidth, barHeight);
+
+  ctx.fillStyle = b.team === 'player' ? "#45a29e" : "#d32f2f";
+  ctx.fillRect(cx - barWidth/2, barY, barWidth * pct, barHeight);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 9px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(`${Math.round(b.hp)} / ${Math.round(b.maxHp)}`, cx, barY - 4);
+}
+
+function drawHPBar(x, y, hp, maxHp, width, team, level) {
+  let pct = Math.max(0, hp / maxHp);
+  let h = 5;
+  let circleRadius = 7;
+
+  ctx.fillStyle = "#000";
+  ctx.fillRect(x - width/2, y, width, h);
+  ctx.fillStyle = team === 'player' ? "#66fcf1" : "#ff3d00";
+  ctx.fillRect(x - width/2, y, width * pct, h);
+
+  let circleX = x - width/2 - 2;
+  let circleY = y + h/2;
+
+  ctx.fillStyle = team === 'player' ? "#005b96" : "#b71c1c";
+  ctx.beginPath();
+  ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 8px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(level, circleX, circleY);
+}
+
+function updateUI() {
+  document.getElementById("energy-fill").style.width = `${(playerEnergy / 10) * 100}%`;
+  document.getElementById("energy-text").innerText = `Энергия: ${playerEnergy.toFixed(1)} / 10`;
+
+  const nextBox = document.getElementById("next-card");
+  if (playerNextCard) {
+    let lvl = getCardLevel(playerNextCard.id);
+    document.getElementById("next-card-img").src = playerNextCard.picture;
+    nextBox.querySelector('.cost')?.remove();
+    nextBox.querySelector('.lvl')?.remove();
+    
+    let costDiv = document.createElement("div"); costDiv.className = "cost"; costDiv.innerText = playerNextCard.cost;
+    let lvlDiv = document.createElement("div"); lvlDiv.className = "lvl"; lvlDiv.innerText = lvl;
+    nextBox.prepend(costDiv); nextBox.appendChild(lvlDiv);
+  }
+
+  const handBox = document.getElementById("hand-cards");
+  handBox.innerHTML = "";
+  playerHand.forEach((card, idx) => {
+    let disabled = card.cost > playerEnergy;
+    let lvl = getCardLevel(card.id);
+    let div = document.createElement("div");
+    div.className = `game-card ${selectedCardIndex === idx ? 'active' : ''} ${disabled ? 'disabled' : ''}`;
+    div.innerHTML = `
+      <div class="cost">${card.cost}</div>
+      <div class="lvl">${lvl}</div>
+      <img class="pic-img" src="${card.picture}">
+      <div class="name">${card.name}</div>
+    `;
+    div.onclick = () => {
+      if (disabled) return;
+      selectedCardIndex = (selectedCardIndex === idx) ? null : idx;
+      updateUI();
+    };
+    handBox.appendChild(div);
+  });
+}
+
+window.addEventListener("click", (e) => {
+  if (gameState !== "GAME" || selectedCardIndex === null) return;
+  const rect = canvas.getBoundingClientRect();
+  if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+
+  let lane = Math.floor(((e.clientY - rect.top) / canvas.height) * LANES_COUNT);
+  let card = playerHand[selectedCardIndex];
+  if (card && playerEnergy >= card.cost) {
+    playerEnergy -= card.cost;
+    playCardLocally(card, lane, 2.5);
+    playerHand[selectedCardIndex] = playerNextCard;
+    playerDeckQueue.push(card);
+    playerNextCard = playerDeckQueue.shift();
+    selectedCardIndex = null;
+    updateUI();
+  }
+});
+
+function endGame(playerWon) {
+  gameState = "END";
+  const modal = document.getElementById("end-modal");
+  
+  if (playerWon) {
+    playerCoins += 5000;
+    document.getElementById("end-title").innerText = "ПОБЕДА В БОЮ! 🎉";
+    document.getElementById("end-reward-box").innerText = "+5000 Монет получено!";
+  } else {
+    document.getElementById("end-title").innerText = "ПОРАЖЕНИЕ! 💀";
+    document.getElementById("end-reward-box").innerText = "Ваш замок разрушен соперником!";
+  }
+  modal.classList.remove("hidden");
+}
+
+// Запуск меню при загрузке
+window.addEventListener("DOMContentLoaded", () => {
+  showMenu();
+});
+</script>
+</body>
+</html>
